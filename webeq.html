@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Bluetooth Connection</title>
+  </head>
+  <body>
+    <button id="connect">Connect to Bluetooth Device</button>
+    <button id="start" disabled>Start Reading</button>
+    <button id="stop" disabled>Stop Reading</button>
+    <p id="eq">EQ Level: Not connected</p>
+
+    <script>
+      let device, characteristic;
+      let reading = false;
+
+      document.getElementById('connect').addEventListener('click', function () {
+        let serviceUuid = '6e400001-b5a3-f393-e0a9-e50e24dcca9e'; // 변경하려는 서비스 UUID
+
+        navigator.bluetooth
+          .requestDevice({
+            acceptAllDevices: true,
+            optionalServices: [serviceUuid],
+          })
+          .then((dev) => {
+            device = dev;
+            console.log('Device discovered', device);
+            return device.gatt.connect();
+          })
+          .then((server) => {
+            console.log('Getting Service...');
+            return server.getPrimaryService(serviceUuid);
+          })
+          .then((service) => {
+            console.log('Getting Characteristic...');
+            return service.getCharacteristic(
+              '6e400003-b5a3-f393-e0a9-e50e24dcca9e'
+            ); // 변경하려는 특성 UUID
+          })
+          .then((char) => {
+            characteristic = char;
+            document.getElementById('start').disabled = false;
+          })
+          .catch((error) => {
+            console.log('Error occurred', error);
+          });
+      });
+
+      document.getElementById('start').addEventListener('click', function () {
+        if (!reading) {
+          reading = true;
+          document.getElementById('stop').disabled = false;
+          readLoop();
+        }
+      });
+
+      document.getElementById('stop').addEventListener('click', function () {
+        if (reading) {
+          reading = false;
+          document.getElementById('stop').disabled = true;
+        }
+      });
+
+      function readLoop() {
+        characteristic
+          .readValue()
+          .then((value) => {
+            console.log('eq Level is ' + value.getUint8(0) + '%');
+            document.getElementById('eq').textContent =
+              'eq Level: ' + value.getUint8(0) + '%';
+            if (reading) {
+              setTimeout(readLoop, 1000);
+            }
+          })
+          .catch((error) => {
+            console.log('Error occurred', error);
+          });
+      }
+    </script>
+  </body>
+</html>
